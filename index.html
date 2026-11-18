@@ -1,0 +1,704 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alcohol Knowledge Journey</title>
+
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #18312d;
+      background: #f2f8f5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+    }
+
+    .game {
+      width: min(900px, 100%);
+      padding: clamp(20px, 5vw, 42px);
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 16px 50px #153b2d16;
+    }
+
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-size: clamp(1.6rem, 5vw, 2.3rem);
+    }
+
+    .subtitle {
+      margin: 8px 0 28px;
+      color: #61736e;
+      text-align: center;
+    }
+
+    .game-info {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      font-weight: 700;
+    }
+
+    #lives {
+      color: #d84646;
+      letter-spacing: 3px;
+      white-space: nowrap;
+    }
+
+    .route-scroll {
+      overflow-x: auto;
+      padding: 36px 0 20px;
+      scrollbar-color: #afc7bb #edf3ef;
+    }
+
+    .route {
+      position: relative;
+      width: 100%;
+      min-width: 720px;
+      height: 100px;
+    }
+
+    .road {
+      position: absolute;
+      top: 43px;
+      right: 0;
+      left: 0;
+      height: 8px;
+      border-radius: 10px;
+      background: #dce6e1;
+    }
+
+    .road-progress {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: #49a77d;
+      transition: width var(--travel-duration, 700ms) linear;
+    }
+
+    .stations {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .station {
+      position: absolute;
+      top: 31px;
+      width: 44px;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+
+    .station-dot {
+      display: block;
+      width: 30px;
+      height: 30px;
+      margin: 0 auto 7px;
+      border: 4px solid white;
+      border-radius: 50%;
+      background: #b7c5bf;
+      box-shadow: 0 0 0 2px #b7c5bf;
+      transition: background 250ms ease, box-shadow 250ms ease;
+    }
+
+    .station.visited .station-dot {
+      background: #49a77d;
+      box-shadow: 0 0 0 2px #49a77d;
+    }
+
+    .station.current .station-dot {
+      background: #ffbd4a;
+      box-shadow: 0 0 0 3px #dc9323;
+    }
+
+    .station-label {
+      display: block;
+      color: #64736e;
+      font-size: 0.7rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .car {
+      position: absolute;
+      z-index: 2;
+      top: -5px;
+      left: 0;
+      font-size: 2rem;
+      line-height: 1;
+      transform: translateX(-50%);
+      transition: left var(--travel-duration, 700ms) linear;
+      filter: drop-shadow(0 2px 2px #0002);
+    }
+
+    .overlay {
+      position: fixed;
+      z-index: 10;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #10251fc2;
+    }
+
+    .overlay[hidden] {
+      display: none;
+    }
+
+    .dialog {
+      width: min(520px, 100%);
+      max-height: min(85vh, 760px);
+      overflow-y: auto;
+      padding: clamp(22px, 5vw, 34px);
+      border-radius: 20px;
+      background: white;
+      box-shadow: 0 20px 60px #0003;
+    }
+
+    .dialog h2 {
+      margin: 0 0 12px;
+      font-size: 1.6rem;
+    }
+
+    .dialog p {
+      line-height: 1.55;
+    }
+
+    .station-kicker {
+      margin: 0 0 8px;
+      color: #39805e;
+      font-size: 0.85rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .answers {
+      display: grid;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    button {
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .answer {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #dce6e1;
+      border-radius: 12px;
+      background: white;
+      color: #18312d;
+      text-align: left;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+
+    .answer:hover:not(:disabled),
+    .answer:focus-visible {
+      border-color: #49a77d;
+      background: #f1faf5;
+    }
+
+    .answer:disabled {
+      cursor: default;
+    }
+
+    .answer.correct {
+      border-color: #23935e;
+      background: #dff6e9;
+    }
+
+    .answer.incorrect {
+      border-color: #d74444;
+      background: #ffe1e1;
+    }
+
+    .feedback {
+      min-height: 1.5em;
+      font-weight: 700;
+    }
+
+    .feedback.good {
+      color: #187449;
+    }
+
+    .feedback.bad {
+      color: #b52f2f;
+    }
+
+    .primary-button {
+      width: 100%;
+      margin-top: 12px;
+      padding: 13px 18px;
+      border: 0;
+      border-radius: 12px;
+      background: #267b56;
+      color: white;
+      font-weight: 800;
+    }
+
+    .primary-button:hover,
+    .primary-button:focus-visible {
+      background: #1c6244;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 14px;
+      }
+
+      .game {
+        padding: 20px 16px;
+      }
+
+      .game-info {
+        font-size: 0.9rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .station-dot {
+        transition-duration: 0.01ms;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="game">
+    <h1>Alcohol Knowledge Journey</h1>
+    <p class="subtitle">Answer the questions and travel to the final station.</p>
+
+    <div class="game-info">
+      <span id="station-status">At the start</span>
+      <span id="lives" aria-label="3 of 3 lives remaining">♥ ♥ ♥</span>
+    </div>
+
+    <div class="route-scroll" id="route-scroll" aria-label="Journey stations">
+      <div class="route" id="route">
+        <div class="road" aria-hidden="true">
+          <div class="road-progress" id="road-progress"></div>
+        </div>
+        <ol class="stations" id="stations"></ol>
+        <span class="car" id="car" aria-label="Car">🚗</span>
+      </div>
+    </div>
+  </main>
+
+  <div class="overlay" id="overlay">
+    <section
+      class="dialog"
+      id="dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dialog-title"
+    ></section>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        question: "What functional group makes a compound an alcohol?",
+        options: ["-COOH", "-OH", "-CHO", "-NH2"],
+        answer: 1
+      },
+      {
+        question: "What is the chemical formula of ethanol?",
+        options: ["CH3OH", "C3H7OH", "C2H5OH", "C6H12O6"],
+        answer: 2
+      },
+      {
+        question: "Which alcohol is very toxic and can cause blindness?",
+        options: [
+          "Methanol",
+          "Ethanol",
+          "Isopropanol in hand sanitizer",
+          "None of them"
+        ],
+        answer: 0
+      },
+      {
+        question: "Ethanol is an example of which type of alcohol?",
+        options: [
+          "Primary (1°)",
+          "Secondary (2°)",
+          "Tertiary (3°)",
+          "Aromatic"
+        ],
+        answer: 0
+      },
+      {
+        question: "When yeast ferments sugar, ethanol is made together with what gas?",
+        options: ["Oxygen", "Hydrogen", "Carbon dioxide", "Nitrogen"],
+        answer: 2
+      },
+      {
+        question: "What is the boiling point of ethanol?",
+        options: ["64.7 °C", "78.4 °C", "82.6 °C", "100 °C"],
+        answer: 1
+      },
+      {
+        question: "What are the products when ethanol burns completely in oxygen?",
+        options: [
+          "Carbon dioxide and water",
+          "Carbon monoxide and hydrogen",
+          "Acetic acid only",
+          "Ash and smoke only"
+        ],
+        answer: 0
+      },
+      {
+        question: "A primary alcohol oxidizes first to an aldehyde and then to what?",
+        options: [
+          "An alkane",
+          "A carboxylic acid",
+          "An ester only",
+          "A tertiary alcohol"
+        ],
+        answer: 1
+      },
+      {
+        question: "Which is a safe way to handle alcohol-based products?",
+        options: [
+          "Keep them near a stove",
+          "Pour them into drink bottles",
+          "Store them in a tightly closed container away from flames",
+          "Drink them if you have no water"
+        ],
+        answer: 2
+      },
+      {
+        question: "Which ethanol concentration usually kills germs better?",
+        options: ["10%", "50%", "70%", "95%"],
+        answer: 2
+      }
+    ];
+
+    const overlay = document.getElementById("overlay");
+    const dialog = document.getElementById("dialog");
+    const stationList = document.getElementById("stations");
+    const car = document.getElementById("car");
+    const roadProgress = document.getElementById("road-progress");
+    const stationStatus = document.getElementById("station-status");
+    const livesDisplay = document.getElementById("lives");
+    const routeScroll = document.getElementById("route-scroll");
+
+    let position = 0;
+    let lives = 3;
+    let score = 0;
+
+    function createStations() {
+      const labels = [
+        "START",
+        ...questions.map((_, index) => `Q${index + 1}`),
+        "END"
+      ];
+
+      labels.forEach((label, index) => {
+        const station = document.createElement("li");
+        station.className = "station";
+        station.dataset.station = index;
+        station.style.left = `${(index / 11) * 100}%`;
+        station.setAttribute("aria-label", `Station ${index}: ${label}`);
+
+        const dot = document.createElement("span");
+        dot.className = "station-dot";
+        dot.setAttribute("aria-hidden", "true");
+
+        const text = document.createElement("span");
+        text.className = "station-label";
+        text.textContent = label;
+
+        station.append(dot, text);
+        stationList.appendChild(station);
+      });
+    }
+
+    function updateJourney() {
+      car.style.left = `${(position / 11) * 100}%`;
+      roadProgress.style.width = `${(position / 11) * 100}%`;
+
+      document.querySelectorAll(".station").forEach((station, index) => {
+        station.classList.toggle("visited", index < position);
+        station.classList.toggle("current", index === position);
+      });
+
+      if (position === 0) {
+        stationStatus.textContent = "At the start";
+      } else if (position === 11) {
+        stationStatus.textContent = "At the end";
+      } else {
+        stationStatus.textContent = `Station ${position} of 11`;
+      }
+
+      livesDisplay.textContent =
+        `${"♥ ".repeat(lives)}${"♡ ".repeat(3 - lives)}`.trim();
+      livesDisplay.setAttribute(
+        "aria-label",
+        `${lives} of 3 lives remaining`
+      );
+
+      requestAnimationFrame(() => {
+        const target = (position / 11) * routeScroll.scrollWidth;
+        const maxScroll = routeScroll.scrollWidth - routeScroll.clientWidth;
+
+        routeScroll.scrollTo({
+          left: Math.max(
+            0,
+            Math.min(maxScroll, target - routeScroll.clientWidth / 2)
+          ),
+          behavior: "smooth"
+        });
+      });
+    }
+
+    function show(content) {
+      dialog.replaceChildren();
+      dialog.appendChild(content);
+      overlay.hidden = false;
+
+      const heading = dialog.querySelector("h2");
+      if (heading) {
+        heading.focus();
+      }
+    }
+
+    function makeHeading(text) {
+      const heading = document.createElement("h2");
+      heading.id = "dialog-title";
+      heading.tabIndex = -1;
+      heading.textContent = text;
+      return heading;
+    }
+
+    function showWelcome(message = "") {
+      const content = document.createDocumentFragment();
+
+      content.appendChild(
+        makeHeading("Welcome, let's test your knowledge on alcohol!")
+      );
+
+      if (message) {
+        const note = document.createElement("p");
+        note.textContent = message;
+        content.appendChild(note);
+      }
+
+      const instructions = document.createElement("p");
+      instructions.textContent =
+        "You have 3 lives. Choose an answer at each question station.";
+      content.appendChild(instructions);
+
+      const button = document.createElement("button");
+      button.className = "primary-button";
+      button.textContent = "Continue";
+
+      button.addEventListener("click", () => {
+        travelTo(1, () => showQuestion(0));
+      });
+
+      content.appendChild(button);
+      show(content);
+    }
+
+    function travelTo(destination, onArrival) {
+      overlay.hidden = true;
+
+      document.documentElement.style.setProperty(
+        "--travel-duration",
+        "5s"
+      );
+
+      position = destination;
+      updateJourney();
+
+      if (destination === 0) {
+        stationStatus.textContent = "Returning to start...";
+      } else if (destination === 11) {
+        stationStatus.textContent = "Travelling to the end...";
+      } else {
+        stationStatus.textContent =
+          `Travelling to station ${destination}...`;
+      }
+
+      window.setTimeout(() => {
+        document.documentElement.style.setProperty(
+          "--travel-duration",
+          "700ms"
+        );
+        onArrival();
+      }, 5000);
+    }
+
+    function showQuestion(index) {
+      position = index + 1;
+      updateJourney();
+
+      const item = questions[index];
+      const content = document.createDocumentFragment();
+
+      const kicker = document.createElement("p");
+      kicker.className = "station-kicker";
+      kicker.textContent = `Question station ${index + 1} of 10`;
+      content.appendChild(kicker);
+
+      content.appendChild(makeHeading(item.question));
+
+      const answers = document.createElement("div");
+      answers.className = "answers";
+      answers.setAttribute("role", "group");
+      answers.setAttribute("aria-label", "Answer choices");
+
+      const feedback = document.createElement("p");
+      feedback.className = "feedback";
+      feedback.setAttribute("aria-live", "polite");
+
+      let answered = false;
+
+      item.options.forEach((option, optionIndex) => {
+        const button = document.createElement("button");
+        button.className = "answer";
+        button.textContent =
+          `${String.fromCharCode(65 + optionIndex)}. ${option}`;
+
+        button.addEventListener("click", () => {
+          if (answered) return;
+          answered = true;
+
+          const isCorrect = optionIndex === item.answer;
+
+          answers.querySelectorAll("button").forEach(answer => {
+            answer.disabled = true;
+          });
+
+          if (isCorrect) {
+            score++;
+            button.classList.add("correct");
+            feedback.textContent = "Correct! Travelling to the next station...";
+            feedback.classList.add("good");
+
+            // Close the question, then travel for 5 seconds.
+            const nextDestination = index === questions.length - 1
+              ? 11
+              : index + 2;
+
+            travelTo(nextDestination, () => {
+              if (index === questions.length - 1) {
+                showEnding();
+              } else {
+                showQuestion(index + 1);
+              }
+            });
+          } else {
+            lives--;
+            button.classList.add("incorrect");
+            answers.children[item.answer].classList.add("correct");
+
+            feedback.textContent =
+              `Not quite. The correct answer is ` +
+              `${String.fromCharCode(65 + item.answer)}. ` +
+              `${item.options[item.answer]}.`;
+            feedback.classList.add("bad");
+
+            updateJourney();
+
+            const continueButton = document.createElement("button");
+            continueButton.className = "primary-button";
+            continueButton.textContent =
+              lives === 0 ? "Return to start" : "Continue";
+
+            continueButton.addEventListener("click", () => {
+              if (lives === 0) {
+                travelTo(0, () => {
+                  resetGame(
+                    "You ran out of lives. Your journey has been reset."
+                  );
+                });
+              } else {
+                const nextDestination = index === questions.length - 1
+                  ? 11
+                  : index + 2;
+
+                travelTo(nextDestination, () => {
+                  if (index === questions.length - 1) {
+                    showEnding();
+                  } else {
+                    showQuestion(index + 1);
+                  }
+                });
+              }
+            });
+
+            dialog.appendChild(continueButton);
+          }
+        });
+
+        answers.appendChild(button);
+      });
+
+      content.append(answers, feedback);
+      show(content);
+    }
+
+    function showEnding() {
+      position = 11;
+      updateJourney();
+
+      const content = document.createDocumentFragment();
+      content.appendChild(makeHeading("Congratulations!"));
+
+      const message = document.createElement("p");
+      message.textContent =
+        `You completed all 10 question stations. Your score: ${score} out of 10.`;
+      content.appendChild(message);
+
+      const button = document.createElement("button");
+      button.className = "primary-button";
+      button.textContent = "Play again";
+      button.addEventListener("click", () => resetGame());
+
+      content.appendChild(button);
+      show(content);
+    }
+
+    function resetGame(message = "") {
+      position = 0;
+      lives = 3;
+      score = 0;
+
+      document.documentElement.style.setProperty(
+        "--travel-duration",
+        "700ms"
+      );
+
+      updateJourney();
+      showWelcome(message);
+    }
+
+    createStations();
+    updateJourney();
+    showWelcome();
+  </script>
+</body>
+</html>
+```
